@@ -87,3 +87,15 @@ cd ~/services/pihole
 cp .env.example .env
 docker compose up -d
 ```
+
+
+### Uptime Kuma (Monitorización y Status)
+- Ubicación local: `~/services/uptime-kuma/`
+
+Despliegue:
+
+```bash
+cd ~/services/uptime-kuma
+docker compose up -d
+```
+EOF
