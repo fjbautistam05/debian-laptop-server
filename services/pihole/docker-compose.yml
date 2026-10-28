@@ -1,0 +1,29 @@
+# Documentación oficial: https://docs.pi-hole.net/
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      # Puerto DNS (TCP y UDP)
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Puerto web HTTP
+      - "80:80/tcp"
+      # Puerto web HTTPS (FTL generará un certificado automarcado)
+      - "443:443/tcp"
+    environment:
+      # Zona horaria ajustada a España
+      TZ: 'Europe/Madrid'
+      # Contraseña para el panel web (cambia 'admin' por la clave que quieras)
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
+      # Escucha en todas las interfaces dentro de la red Docker bridge
+      FTLCONF_dns_listeningMode: 'ALL'
+    volumes:
+      # Persistencia de datos e historial de Pi-hole v6
+      - './etc-pihole:/etc/pihole'
+    cap_add:
+      # Capacidades del kernel requeridas para red, sincronización horaria y prioridades
+      - NET_ADMIN
+      - SYS_TIME
+      - SYS_NICE
+    restart: unless-stopped
