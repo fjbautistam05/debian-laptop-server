@@ -8,9 +8,9 @@ services:
       - "53:53/tcp"
       - "53:53/udp"
       # Puerto web HTTP
-      - "80:80/tcp"
+      - "8080:80/tcp"
       # Puerto web HTTPS (FTL generará un certificado automarcado)
-      - "443:443/tcp"
+      - "8443:443/tcp"
     environment:
       # Zona horaria ajustada a España
       TZ: 'Europe/Madrid'
@@ -27,3 +27,8 @@ services:
       - SYS_TIME
       - SYS_NICE
     restart: unless-stopped
+
+networks:
+  default:
+    name: proxy-net
+    external: true
