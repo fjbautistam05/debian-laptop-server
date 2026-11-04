@@ -116,4 +116,4 @@ Certificado: **SSL Wildcard** (`*.portatil-lan.duckdns.org`) gestionado mediante
 
 * **Pi-hole (`~/services/pihole/`)**
   * Servidor DNS primario para la red local.
-  *
+  
