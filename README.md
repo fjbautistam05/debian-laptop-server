@@ -9,19 +9,25 @@ Documentación y configuración del servidor doméstico sobre portátil con Debi
 ### Gestión de Energía (Tapa cerrada)
 Prevención de suspensión al cerrar la tapa en `/etc/systemd/logind.conf`:
 
+```ini
 HandleLidSwitch=ignore
 HandleLidSwitchExternalPower=ignore
 HandleLidSwitchDocked=ignore
+```
 
 Aplicar cambios y enmascarar objetivos de suspensión:
 
+```bash
 sudo systemctl restart systemd-logind
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
 
 ### Soporte de Terminal
 Instalación de definiciones de terminal para Kitty por SSH:
 
+```bash
 sudo apt install -y kitty-terminfo
+```
 
 ---
 
@@ -30,31 +36,41 @@ sudo apt install -y kitty-terminfo
 ### Autenticación SSH por Clave Pública (ed25519)
 Acceso por contraseña y login directo de `root` deshabilitados.
 
-1. Generar la clave en el cliente y copiarla al servidor:
+1. Generar la clave en el equipo cliente y copiarla al servidor:
+   ```bash
    ssh-keygen -t ed25519 -C "servidor-debian"
    ssh-copy-id fran@portatil.lan
+   ```
 
 2. Configuración en `/etc/ssh/sshd_config.d/hardening.conf`:
+   ```text
    PermitRootLogin no
    PasswordAuthentication no
    KbdInteractiveAuthentication no
+   ```
 
 3. Validar sintaxis y reiniciar SSH:
+   ```bash
    sudo sshd -t && sudo systemctl restart sshd
+   ```
 
 ### Cortafuegos (UFW)
 Tráfico entrante restringido a la interfaz mesh de Tailscale:
 
+```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow in on tailscale0 to any port 22 proto tcp
 sudo ufw enable
+```
 
 ### Actualizaciones Automáticas
 Parches de seguridad gestionados con `unattended-upgrades`:
 
+```bash
 sudo apt update && sudo apt install -y unattended-upgrades apt-listchanges
 sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
 
 ---
 
@@ -63,14 +79,18 @@ sudo dpkg-reconfigure --priority=low unattended-upgrades
 ### Red Integrada (`proxy-net`)
 Red `bridge` externa dedicada para la comunicación directa inter-contenedor sin exponer puertos innecesarios al host:
 
+```bash
 docker network create proxy-net
+```
 
 Todos los desplegables conectan a la red en sus respectivos `docker-compose.yml`:
 
+```yaml
 networks:
   default:
   proxy-net:
     external: true
+```
 
 ---
 
@@ -96,19 +116,4 @@ Certificado: **SSL Wildcard** (`*.portatil-lan.duckdns.org`) gestionado mediante
 
 * **Pi-hole (`~/services/pihole/`)**
   * Servidor DNS primario para la red local.
-  * Registros DNS locales apuntando `*.portatil-lan.duckdns.org` a la IP local/Tailscale (`100.72.28.89`).
-  * Regla de redirección en NPM (**Advanced**) para acceso sin ruta manual:
-    location = / {
-        return 301 /admin/;
-    }
-
-* **Homepage (`~/services/homepage/`)**
-  * Dashboard de inicio unificado con enlaces HTTPS a la totalidad del ecosistema local (`services.yaml`).
-
-* **Uptime Kuma (`~/services/uptime-kuma/`)**
-  * Soporte de **WebSockets** activado en el Proxy Host de NPM.
-  * Monitorización directa mediante resolución interna de contenedores en `proxy-net` (`http://<contenedor>:<puerto>`).
-  * Integración de notificaciones push instantáneas al móvil a través de **ntfy.sh**.
-
-* **Portainer (`~/services/portainer/`)**
-  * Gestión visual de stacks, contenedores y volúmenes de Docker.
+  *
