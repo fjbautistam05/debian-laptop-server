@@ -1,101 +1,114 @@
 # Debian Laptop Server
 
-Documentación y configuraciones del servidor doméstico en portátil con Debian.
+Documentación y configuración del servidor doméstico sobre portátil con Debian GNU/Linux.
 
-## Configuración del Sistema
+---
 
-### 1. Gestión de Energía (Tapa cerrada)
-Configurado `/etc/systemd/logind.conf` para evitar la suspensión al cerrar la tapa:
+## 1. Configuración del Sistema
 
-```ini
+### Gestión de Energía (Tapa cerrada)
+Prevención de suspensión al cerrar la tapa en `/etc/systemd/logind.conf`:
+
 HandleLidSwitch=ignore
 HandleLidSwitchExternalPower=ignore
 HandleLidSwitchDocked=ignore
-```
 
-Comandos aplicados:
+Aplicar cambios y enmascarar objetivos de suspensión:
 
-```bash
 sudo systemctl restart systemd-logind
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-```
 
-### 2. Paquetes y SSH
-Soporte para terminal Kitty por SSH:
+### Soporte de Terminal
+Instalación de definiciones de terminal para Kitty por SSH:
 
-```bash
 sudo apt install -y kitty-terminfo
-```
 
-## Seguridad y Endurecimiento (Hardening)
+---
 
-### 1. Autenticación SSH por Clave Pública (ed25519)
-Se deshabilitó el login con contraseña y el acceso directo al usuario root.
+## 2. Seguridad y Endurecimiento (Hardening)
 
-1. Generar la clave en el equipo cliente y copiarla al servidor:
+### Autenticación SSH por Clave Pública (ed25519)
+Acceso por contraseña y login directo de `root` deshabilitados.
 
-```bash
-ssh-keygen -t ed25519 -C "servidor-debian"
-ssh-copy-id fran@portatil.lan
-```
+1. Generar la clave en el cliente y copiarla al servidor:
+   ssh-keygen -t ed25519 -C "servidor-debian"
+   ssh-copy-id fran@portatil.lan
 
-2. Crear la configuración de hardening en `/etc/ssh/sshd_config.d/hardening.conf`:
+2. Configuración en `/etc/ssh/sshd_config.d/hardening.conf`:
+   PermitRootLogin no
+   PasswordAuthentication no
+   KbdInteractiveAuthentication no
 
-```text
-PermitRootLogin no
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-```
+3. Validar sintaxis y reiniciar SSH:
+   sudo sshd -t && sudo systemctl restart sshd
 
-3. Validar sintaxis y reiniciar el servicio:
+### Cortafuegos (UFW)
+Tráfico entrante restringido a la interfaz mesh de Tailscale:
 
-```bash
-sudo sshd -t
-sudo systemctl restart sshd
-```
-
-### 2. Cortafuegos (UFW)
-Aislamiento de tráfico para permitir únicamente conexiones desde la red mesh de Tailscale:
-
-```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow in on tailscale0 to any port 22 proto tcp
 sudo ufw enable
-```
 
-### 3. Actualizaciones Automáticas (unattended-upgrades)
-Instalación de parches de seguridad automatizados en Debian:
+### Actualizaciones Automáticas
+Parches de seguridad gestionados con `unattended-upgrades`:
 
-```bash
 sudo apt update && sudo apt install -y unattended-upgrades apt-listchanges
 sudo dpkg-reconfigure --priority=low unattended-upgrades
-```
 
-## Docker
-Instalado desde el repositorio oficial de Docker CE (`docker-ce`, `docker-compose-plugin`).
+---
 
-## Servicios
+## 3. Infraestructura Docker
 
-### Pi-hole (DNS y AdBlock)
-* Ubicación local: `~/services/pihole/`
+### Red Integrada (`proxy-net`)
+Red `bridge` externa dedicada para la comunicación directa inter-contenedor sin exponer puertos innecesarios al host:
 
-Despliegue:
+docker network create proxy-net
 
-```bash
-cd ~/services/pihole
-cp .env.example .env
-docker compose up -d
-```
+Todos los desplegables conectan a la red en sus respectivos `docker-compose.yml`:
 
+networks:
+  default:
+  proxy-net:
+    external: true
 
-### Uptime Kuma (Monitorización y Status)
-- Ubicación local: `~/services/uptime-kuma/`
+---
 
-Despliegue:
+## 4. Servicios y Proxy Inverso
 
-```bash
-cd ~/services/uptime-kuma
-docker compose up -d
-```
-EOF
+Dominio base: `portatil-lan.duckdns.org`  
+Certificado: **SSL Wildcard** (`*.portatil-lan.duckdns.org`) gestionado mediante DNS Challenge en Let's Encrypt (DuckDNS token).
+
+| Servicio | Ubicación Local | Acceso HTTPS / Dirección |
+| :--- | :--- | :--- |
+| **Homepage** | `~/services/homepage/` | `https://home.portatil-lan.duckdns.org` |
+| **Nginx Proxy Manager** | `~/services/npm/` | `https://npm.portatil-lan.duckdns.org` *(Rescate: `http://100.72.28.89:81`)* |
+| **Pi-hole** | `~/services/pihole/` | `https://pihole.portatil-lan.duckdns.org/admin/` |
+| **Portainer** | `~/services/portainer/` | `https://portainer.portatil-lan.duckdns.org` |
+| **Uptime Kuma** | `~/services/uptime-kuma/` | `https://kuma.portatil-lan.duckdns.org` |
+
+### Detalles de Configuración por Servicio
+
+* **Nginx Proxy Manager (`~/services/npm/`)**
+  * Punto de entrada HTTP (80) y HTTPS (443).
+  * Proxy host para sí mismo configurado apuntando a `http://127.0.0.1:81`.
+  * Opción *Force SSL* y *HTTP/2 Support* habilitados globalmente.
+
+* **Pi-hole (`~/services/pihole/`)**
+  * Servidor DNS primario para la red local.
+  * Registros DNS locales apuntando `*.portatil-lan.duckdns.org` a la IP local/Tailscale (`100.72.28.89`).
+  * Regla de redirección en NPM (**Advanced**) para acceso sin ruta manual:
+    location = / {
+        return 301 /admin/;
+    }
+
+* **Homepage (`~/services/homepage/`)**
+  * Dashboard de inicio unificado con enlaces HTTPS a la totalidad del ecosistema local (`services.yaml`).
+
+* **Uptime Kuma (`~/services/uptime-kuma/`)**
+  * Soporte de **WebSockets** activado en el Proxy Host de NPM.
+  * Monitorización directa mediante resolución interna de contenedores en `proxy-net` (`http://<contenedor>:<puerto>`).
+  * Integración de notificaciones push instantáneas al móvil a través de **ntfy.sh**.
+
+* **Portainer (`~/services/portainer/`)**
+  * Gestión visual de stacks, contenedores y volúmenes de Docker.
