@@ -116,4 +116,21 @@ Certificado: **SSL Wildcard** (`*.portatil-lan.duckdns.org`) gestionado mediante
 
 * **Pi-hole (`~/services/pihole/`)**
   * Servidor DNS primario para la red local.
-  
+  * Registros DNS locales apuntando `*.portatil-lan.duckdns.org` a la IP local/Tailscale (`100.72.28.89`).
+  * Regla de redirección en NPM (**Advanced**) para acceso sin ruta manual:
+    ```nginx
+    location = / {
+        return 301 /admin/;
+    }
+    ```
+
+* **Homepage (`~/services/homepage/`)**
+  * Dashboard de inicio unificado con enlaces HTTPS a la totalidad del ecosistema local (`services.yaml`).
+
+* **Uptime Kuma (`~/services/uptime-kuma/`)**
+  * Soporte de **WebSockets** activado en el Proxy Host de NPM.
+  * Monitorización directa mediante resolución interna de contenedores en `proxy-net` (`http://<contenedor>:<puerto>`).
+  * Integración de notificaciones push instantáneas al móvil a través de **ntfy.sh**.
+
+* **Portainer (`~/services/portainer/`)**
+  * Gestión visual de stacks, contenedores y volúmenes de Docker.
